@@ -1,7 +1,40 @@
 import jax
-from jax import random, lax
 import jax.numpy as jnp
 import numpy as np
+from jax import lax, random
+
+
+def linear_beta_schedule(timesteps, start=0.0001, stop=0.02):
+    """
+    Creates a linear schedule for beta from start to stop value.
+
+    Args:
+    timesteps (int): The number of timesteps in the diffusion process.
+    start (float): The starting value of beta.
+    stop (float): The stopping value of beta.
+
+    Returns:
+    np.ndarray: An array of beta values linearly interpolated from start to stop.
+    """
+    return jnp.linspace(start, stop, timesteps)
+
+
+def cosine_beta_schedule(timesteps, start=0.0001, stop=0.02):
+    """
+    Creates a cosine schedule for beta, inspired by the SDE approach.
+
+    Args:
+    timesteps (int): The number of timesteps in the diffusion process.
+    start (float): The starting value of beta.
+    stop (float): The stopping value of beta.
+
+    Returns:
+    np.ndarray: An array of beta values following a cosine schedule.
+    """
+    s = jnp.linspace(0, np.pi, timesteps)  # Linearly space over the interval [0, pi]
+    return start + (stop - start) * (1 - np.cos(s)) / 2
+
+
 class DDIM:
     def __init__(self, model, beta_schedule):
         """
