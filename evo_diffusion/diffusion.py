@@ -66,17 +66,31 @@ class DDIM:
         The noised image at time step t.
         """
         noise = random.normal(key, x0.shape)
-        xt = self.sqrt_alphas_cumprod[t] * x0 + self.sqrt_one_minus_alphas_cumprod[t] * noise
+        xt = (
+            self.sqrt_alphas_cumprod[t] * x0
+            + self.sqrt_one_minus_alphas_cumprod[t] * noise
+        )
         return xt, noise
 
     def single_step_denoise(self, noise, xt, t):
         """
-        
+
         EQ: 9 in https://doi.org/10.48550/arXiv.2010.02502
         """
-        return (xt - self.sqrt_one_minus_alphas_cumprod[t] * noise) / self.sqrt_alphas_cumprod[t]
+        return (
+            xt - self.sqrt_one_minus_alphas_cumprod[t] * noise
+        ) / self.sqrt_alphas_cumprod[t]
 
-    def reverse_process(self, key, shape, params, observed=None, score_fn=None, guidance_strength=1.0, num_steps=None):
+    def reverse_process(
+        self,
+        key,
+        shape,
+        params,
+        observed=None,
+        score_fn=None,
+        guidance_strength=1.0,
+        num_steps=None,
+    ):
         """
         Performs the guided reverse diffusion process using the model's noise predictions and optional observation guidance.
 
@@ -93,7 +107,7 @@ class DDIM:
         """
         if num_steps is None:
             num_steps = len(self.beta_schedule)
-            
+
         if observed is not None:
             mask = np.isnan(observed)
 
@@ -102,24 +116,27 @@ class DDIM:
             t = num_steps - i - 1
 
             # Predict noise at current step
-            predicted_noise = self.model.apply(params, xt, jnp.array([t]))
+            predicted_noise = self.model.apply(params, xt, t * jnp.ones(shape[0]))
 
             # Apply guidance if provided
             if observed is not None and score_fn is not None:
+
                 def predict_obs_fn(xt, t):
                     return self.single_step_denoise(predicted_noise, xt, t)
 
                 # Compute guidance from score function and update predicted noise
-                guidance_score = score_fn(xt, jnp.array([t]), observed=observed, predict_obs_fn=predict_obs_fn)
+                guidance_score = score_fn(
+                    xt, jnp.array([t]), observed=observed, predict_obs_fn=predict_obs_fn
+                )
                 predicted_noise -= guidance_strength * guidance_score
 
             # Use the predicted noise to compute the denoised data (predicted observed)
             # EQ: 12 in https://doi.org/10.48550/arXiv.2010.02502
             alpha_prev = jnp.concatenate((jnp.ones(1), self.alphas_cumprod))[t]
             alpha = self.alphas_cumprod[t]
-            
-            pred_x0 = (xt - jnp.sqrt(1-alpha) * predicted_noise) / jnp.sqrt(alpha)
-            direction_xt = jnp.sqrt(1-alpha_prev) * predicted_noise
+
+            pred_x0 = (xt - jnp.sqrt(1 - alpha) * predicted_noise) / jnp.sqrt(alpha)
+            direction_xt = jnp.sqrt(1 - alpha_prev) * predicted_noise
             xt_minus_1 = jnp.sqrt(alpha_prev) * pred_x0 + direction_xt
             if observed is not None:
                 xt_minus_1 = xt_minus_1.at[:, ~mask].set(observed[~mask])
@@ -128,5 +145,7 @@ class DDIM:
 
         # Sample noise and reverse step num_steps times
         xT = random.normal(key, shape)
-        (xT_m_num_steps, _), _ = lax.scan(_reverse_step, (xT, key), jnp.arange(num_steps))
+        (xT_m_num_steps, _), _ = lax.scan(
+            _reverse_step, (xT, key), jnp.arange(num_steps)
+        )
         return xT_m_num_steps
