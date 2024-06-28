@@ -26,3 +26,11 @@ def train_step_ddim(diffusion, state, batch, t, key):
     state = state.apply_gradients(grads=grads)
     return state, loss
 
+
+def create_training_batches(y, batch_size):
+    num_samples = y.shape[0]
+    num_batches = num_samples // batch_size
+    batches = []
+    for i in range(num_batches):
+        batches.append(y[(i * batch_size) : ((i + 1) * batch_size)])
+    return batches
