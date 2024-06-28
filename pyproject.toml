@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "evo-diffusion"
+name = "evo_diffusion"
 version = "0.1.0"
 description = ""
 authors = ["marlinfiggins <marlinfiggins@gmail.com>"]
@@ -15,7 +15,11 @@ jaxlib = "^0.4.26"
 flax = "^0.8.2"
 pandas = "^2.2.1"
 optax = "^0.2.2"
+orbax = "^0.1.9"
 
+
+[tool.poetry.group.dev.dependencies]
+notebook = "^7.2.1"
 
 [build-system]
 requires = ["poetry-core"]
