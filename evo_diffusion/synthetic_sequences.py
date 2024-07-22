@@ -1,5 +1,6 @@
 import os
 import pickle
+from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,17 +8,31 @@ from matplotlib.colors import ListedColormap
 
 
 def simulate_genetic_sequences(
-    num_sequences, sequence_length, time_span, fitness_fn, mutation_rate
+    num_sequences: int,
+    sequence_length: int,
+    time_span: int,
+    fitness_fn: Callable,
+    mutation_rate: float,
+    time_dependent_fitness: bool = False,
 ):
     # Initialize the population with random sequences
     population = np.random.randint(0, 4, size=(num_sequences, sequence_length))
-    nucleotides = np.array(["A", "C", "G", "T"])  # Convert integers to nucleotides
+
+    # Convert integers to nucleotides
+    nucleotides = np.array(["A", "C", "G", "T"])
+
     sequences = nucleotides[population]
+
+    # List to store sequences at all time steps
     all_sequences = [nucleotides[population]]
 
-    for _ in range(time_span):
+    for generation in range(time_span):
         # Calculate fitness for each sequence
-        fitness = fitness_fn(sequences)
+        fitness = (
+            fitness_fn(sequences, generation)
+            if time_dependent_fitness
+            else fitness_fn(sequences)
+        )
 
         # Select parents based on fitness (using weighted random sampling)
         parent_indices = np.random.choice(
@@ -31,7 +46,7 @@ def simulate_genetic_sequences(
         offspring = parents.copy()
         mutation_mask = np.random.random(offspring.shape) < mutation_rate
         offspring[mutation_mask] = nucleotides[
-            np.random.randint(0, 4, size=np.sum(mutation_mask))
+            np.random.randint(0, 4, size=int(np.sum(mutation_mask)))
         ]
 
         # Replace the population with the offspring
@@ -95,7 +110,11 @@ def visualize_sequences(ax, sequences, num_sequences=10):
 
 
 def visualize_sequence_metric(
-    all_sequences, metric_function, ax=None, title="Sequence Metric Over Time"
+    all_sequences,
+    metric_function,
+    ax=None,
+    title="Sequence Metric Over Time",
+    time_dependent_metric=False,
 ):
     """
     Visualize any scalar metric of the sequences over time.
@@ -112,8 +131,12 @@ def visualize_sequence_metric(
     time_steps = len(all_sequences)
     metric_values = []
 
-    for population in all_sequences:
-        metric_values.append(metric_function(population))
+    for generation, population in enumerate(all_sequences):
+        metric_values.append(
+            metric_function(population, generation)
+            if time_dependent_metric
+            else metric_function(population)
+        )
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 6))
