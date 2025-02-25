@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from evo_diffusion.torch_components import TransformerSequenceEmbedding, SinusoidalPositionalEmbedding, MLP
+from evo_diffusion.torch_components import (MLP, SinusoidalPositionalEmbedding,
+                                            TransformerSequenceEmbedding)
+
 
 class EditBasedDiffusion(nn.Module):
     def __init__(self, sequence_length, num_residues, embedding_dim, transformer_params, mlp_params):
@@ -155,7 +157,7 @@ class EditBasedDiffusion(nn.Module):
 
         # Flatten for processing
         batch_size, sequence_length, embedding_dim = combined_embedding.shape
-        reshaped_embedding = combined_embedding.reshape(batch_size * sequence_length, embedding_dim)
+        reshaped_embedding = combined_embedding
 
         # Generate edit field
         edit_field = self.forward_net(reshaped_embedding)
@@ -178,18 +180,18 @@ class EditBasedDiffusion(nn.Module):
         time_embedding = self.embed_time(t)
 
         # Inject noise into embeddings
-        noise = F.pad(noise, (0, 0, 1, 0))  
-        noisy_seq = seq_with_cls + noise  # Add noise explicitly
+        # noise = F.pad(noise, (0, 0, 1, 0))  
+        # noisy_seq = seq_with_cls + noise  # Add noise explicitly
 
         # Combine sequence + noise + time embeddings
-        time_aware_cls, combined_embedding = self.combine_embeddings(noisy_seq, time_embedding, self.reverse_attention)
+        time_aware_cls, combined_embedding = self.combine_embeddings(seq_with_cls, time_embedding, self.reverse_attention)
 
         # Remove CLS token
         combined_embedding = combined_embedding[:, 1:, :]
 
         # Flatten for processing
         batch_size, sequence_length, embedding_dim = combined_embedding.shape
-        reshaped_embedding = combined_embedding.reshape(batch_size * sequence_length, embedding_dim)
+        reshaped_embedding = combined_embedding
 
         reverse_field = self.reverse_net(reshaped_embedding)
 
@@ -208,7 +210,8 @@ class EditBasedDiffusion(nn.Module):
             x_t: Updated sequence after applying edits (soft distribution).
         """
         # Update sequence prob using predicted edit field
-        x_t = F.softmax(torch.log(x + eps) + edit_field, dim=-1)
+        x_logits = torch.log(x + eps) 
+        x_t = F.softmax(x_logits + edit_field, dim=-1)
         return x_t
 
     def forward(self, x, t):
