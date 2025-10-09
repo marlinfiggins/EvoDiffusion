@@ -14,9 +14,14 @@ def simulate_genetic_sequences(
     fitness_fn: Callable,
     mutation_rate: float,
     time_dependent_fitness: bool = False,
+    fix_initial_population: bool = False
 ):
     # Initialize the population with random sequences
-    population = np.random.randint(0, 4, size=(num_sequences, sequence_length))
+    if fix_initial_population:
+        initial_sequence = np.random.randint(0, 4, size=(sequence_length))
+        population = np.vstack([initial_sequence] * num_sequences)
+    else:
+        population = np.random.randint(0, 4, size=(num_sequences, sequence_length))
 
     # Convert integers to nucleotides
     nucleotides = np.array(["A", "C", "G", "T"])
